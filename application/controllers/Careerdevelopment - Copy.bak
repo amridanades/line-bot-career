@@ -1,0 +1,463 @@
+<?php defined('BASEPATH') OR exit('No direct script access allowed');
+
+
+
+// SDK for create bot
+
+        use \LINE\LINEBot;
+
+        use \LINE\LINEBot\HTTPClient\CurlHTTPClient;
+
+
+
+// SDK for build message
+
+        use \LINE\LINEBot\MessageBuilder\TextMessageBuilder;
+
+        use \LINE\LINEBot\MessageBuilder\StickerMessageBuilder;
+
+        use \LINE\LINEBot\MessageBuilder\TemplateMessageBuilder;
+
+        use \LINE\LINEBot\MessageBuilder\ImageMessageBuilder;
+
+
+
+// SDK for build button and template action
+
+        use \LINE\LINEBot\MessageBuilder\TemplateBuilder\ButtonTemplateBuilder;
+
+        use \LINE\LINEBot\TemplateActionBuilder\MessageTemplateActionBuilder;
+
+//SDK LINEBot
+
+use LINE\LINEBot\ImagemapActionBuilder\AreaBuilder;
+use LINE\LINEBot\ImagemapActionBuilder\ImagemapMessageActionBuilder;
+use LINE\LINEBot\ImagemapActionBuilder\ImagemapUriActionBuilder;
+use LINE\LINEBot\TemplateActionBuilder\PostbackTemplateActionBuilder;
+use LINE\LINEBot\TemplateActionBuilder\UriTemplateActionBuilder;
+use LINE\LINEBot\Event\MessageEvent\TextMessage;
+use LINE\LINEBot\MessageBuilder\Imagemap\BaseSizeBuilder;
+use LINE\LINEBot\MessageBuilder\ImagemapMessageBuilder;
+
+use LINE\LINEBot\MessageBuilder\TemplateBuilder\CarouselColumnTemplateBuilder;
+use LINE\LINEBot\MessageBuilder\TemplateBuilder\CarouselTemplateBuilder;
+use LINE\LINEBot\MessageBuilder\TemplateBuilder\ConfirmTemplateBuilder;
+
+
+class Careerdevelopment extends CI_Controller {
+
+
+    private $events;
+
+    private $signature;
+
+
+    private $bot;
+
+    private $user;
+
+
+    function __construct()
+
+    {
+
+        parent::__construct();
+
+        $this->load->model('M_careerdevelopment');
+        // create bot object
+        $httpClient = new CurlHTTPClient($_ENV['CHANNEL_ACCESS_TOKEN']);
+        $this->bot  = new LINEBot($httpClient, ['channelSecret' => $_ENV['CHANNEL_SECRET']]);
+
+    }
+
+
+    public function index()
+
+    {
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+
+            echo "Informasi Career And development";
+
+            header('HTTP/1.1 400 Only POST method allowed');
+
+            exit;
+
+        }
+
+
+        // get request
+
+        $body = file_get_contents('php://input');
+
+        $this->signature = isset($_SERVER['HTTP_X_LINE_SIGNATURE'])
+
+                ? $_SERVER['HTTP_X_LINE_SIGNATURE']
+
+                : "-";
+
+        $this->events = json_decode($body, true);
+
+
+        $this->M_careerdevelopment->log_events($this->signature, $body);
+
+        foreach ($this->events['events'] as $event)
+
+       {
+
+       // skip group and room event
+
+       if(! isset($event['source']['userId'])) continue;
+
+
+
+       // get user data from database
+
+       $this->user = $this->M_careerdevelopment->getUser($event['source']['userId']);
+
+       // respond event
+
+       if($event['type'] == 'message'){
+
+           if(method_exists($this, $event['message']['type'].'Message')){
+
+           $this->{$event['message']['type'].'Message'}($event);
+
+           }
+
+       }
+
+       else {
+
+           if(method_exists($this, $event['type'].'Callback')){
+
+           $this->{$event['type'].'Callback'}($event);
+
+           }
+
+       }
+    }
+
+    }
+
+    private function followCallback($event)
+
+    {
+
+        $res = $this->bot->getProfile($event['source']['userId']);
+
+        if ($res->isSucceeded())
+
+        {
+
+            $profile = $res->getJSONDecodedBody();
+
+
+
+            // save user data
+
+            $this->M_careerdevelopment->saveUser($profile);
+
+        }
+
+        // send welcome message
+        $message = "Hallo, " . $profile['displayName'] . "!\n";
+        $message .= "Terima kasih telah menambahkan akun ini di line kamu\n";
+		$message .= "Akun ini berisi informasi seputar Schoolarship, Internship, dan Job Vacancies untuk mahasiswa ITB\n";
+		$message .= "Ketik \"INFO\" untuk melihat informasi";
+        $textMessageBuilder = new TextMessageBuilder($message);
+        $this->bot->pushMessage($event['source']['userId'], $textMessageBuilder);
+
+        $stickerMessageBuilder = new StickerMessageBuilder(1, 5);
+        $this->bot->pushMessage($event['source']['userId'], $stickerMessageBuilder);
+		
+		/*
+		$url = "https://res.cloudinary.com/dhacnihww/image/upload/v1495004230/sample.jpg";
+		$options1[] = new MessageTemplateActionBuilder("1. Schoolarship","Schoolarship");
+		$options1[] = new MessageTemplateActionBuilder("2. Internship","Internship");
+		$options1[] = new MessageTemplateActionBuilder("3. Job Vacancies","Job Vacancies");
+		
+		// prepare button template
+		
+            $buttonTemplate1 = new ButtonTemplateBuilder("ITB Career Center", "Pilih salah satu", $url, $options1);
+
+
+            // build message
+			$message2 = "Gunakan mobile app untuk melihat pilihan, atau anda bisa ketik manual,\n";
+			$message2 .= "pilih :\n";
+			$message2 .= "1. ketik \"SCHOOLARSHIP\" untuk melihat schoolarship\n";
+			$message2 .= "1. ketik \"INTERNSHIP\" untuk melihat internship\n";
+			$message2 .= "1. ketik \"JOB VACANCIES\" untuk melihat Job Vacancies\n";
+			
+           $messageBuilder1 = new TemplateMessageBuilder($message2, $buttonTemplate1);
+			
+         //   $tesimage = new ImageMessageBuilder($url,$url);
+           // $this->bot->pushMessage($event['source']['userId'], $tesimage);
+            $this->bot->pushMessage($event['source']['userId'], $messageBuilder1);
+           
+             // $this->bot->pushMessage($event['source']['userId'], $tesimage);
+	*/
+	/*
+	$imageUrl = "https://res.cloudinary.com/dhacnihww/image/upload/v1495004230/sample.jpg";
+                $carouselTemplateBuilder = new CarouselTemplateBuilder([
+                    new CarouselColumnTemplateBuilder('foo', 'bar', $imageUrl, [
+                        new UriTemplateActionBuilder('Go to line.me', 'https://line.me'),
+                          new MessageTemplateActionBuilder('Say message', 'hello hello'),
+                    ]),
+                    new CarouselColumnTemplateBuilder('buz', 'qux', $imageUrl, [
+                        new UriTemplateActionBuilder('Go to line.me', 'https://line.me'),
+                        new MessageTemplateActionBuilder('Say message', 'hello hello'),
+                    ]),
+                ]);
+                $templateMessage = new TemplateMessageBuilder('Button alt text', $carouselTemplateBuilder);
+                $this->bot->pushMessage($event['source']['userId'], $templateMessage);
+				*/
+				$imageUrl = "https://res.cloudinary.com/dhacnihww/image/upload/v1495004230/sample.jpg";
+
+				$columnTemplateBuilders = array();
+				$columnTitles = array('foo', 'bar', 'buz');
+
+				foreach ($columnTitles as $title) {
+					$columnTemplateBuilder = new CarouselColumnTemplateBuilder($title, 'description', $imageUrl, [
+					new UriTemplateActionBuilder('Go to line.me', 'https://line.me'),
+					new MessageTemplateActionBuilder('Say message', 'hello hello'),
+				]);
+				array_push($columnTemplateBuilders, $columnTemplateBuilder);
+				}	
+
+				$carouselTemplateBuilder = new CarouselTemplateBuilder($columnTemplateBuilders);
+				$templateMessage = new TemplateMessageBuilder('Button alt text', $carouselTemplateBuilder);
+				$this->bot->pushMessage($event['source']['userId'], $templateMessage);
+				
+    }
+
+    private function textMessage($event)
+
+      {
+        $userMessage = $event['message']['text'];
+		$userId = $event['source']['userId'];
+			/*
+              if(strtolower($userMessage) == 'denah')
+
+              {
+                  $this->kirimInformasi($this->user['user_id'], '1');
+              } 
+
+              elseif (strtolower($userMessage) == 'lainnya') {
+                 $message = 'Silakan kirim pesan untuk mengetahui informasi classroom yang kamu cari';
+                 $textMessageBuilder = new TextMessageBuilder($message);
+                 $this->bot->pushMessage($event['source']['userId'], $textMessageBuilder);
+              }
+               else {
+                $this->balasPertanyaan($this->user['user_id'], $userMessage);
+              }
+			*/
+			if(strtolower($userMessage) == 'info'){
+			/*
+            $url = "https://res.cloudinary.com/dhacnihww/image/upload/v1495004230/sample.jpg";
+			$options1[] = new MessageTemplateActionBuilder("1. Schoolarship","Schoolarship");
+			$options1[] = new MessageTemplateActionBuilder("2. Internship","Internship");
+			$options1[] = new MessageTemplateActionBuilder("3. Job Vacancies","Job");
+		
+		// prepare button template
+		
+            $buttonTemplate1 = new ButtonTemplateBuilder("ITB Career Center", "Pilih salah satu", $url, $options1);
+
+
+            // build message
+			$message2 = "Gunakan mobile app untuk melihat pilihan, atau anda bisa ketik manual,\n";
+			$message2 .= "pilih :\n";
+			$message2 .= "1. ketik \"SCHOOLARSHIP\" untuk melihat schoolarship\n";
+			$message2 .= "2. ketik \"INTERNSHIP\" untuk melihat internship\n";
+			$message2 .= "3. ketik \"JOB VACANCIES\" untuk melihat Job Vacancies\n";
+			
+            $messageBuilder1 = new TemplateMessageBuilder($message2, $buttonTemplate1);
+            $this->bot->pushMessage($event['source']['userId'], $messageBuilder1);
+			*/
+			 $this->menu($userId);
+            } 
+			  
+			elseif (strtolower($userMessage) == 'schoolarship'){
+			/*
+				$url3 = "https://res.cloudinary.com/dhacnihww/image/upload/v1495004230/sample.jpg";
+				$options3[] = new MessageTemplateActionBuilder("1. Schoolarship periode bulan ini","Schoolarship_periode_bulan");
+				$options3[] = new MessageTemplateActionBuilder("2. Schoolarship dalam negeri","Schoolarship_dalam_negeri");
+				$options3[] = new MessageTemplateActionBuilder("3. Schoolarship dalam luar negeri","Schoolarship_luar_negeri");
+		
+				// prepare button template
+		
+				$buttonTemplate3 = new ButtonTemplateBuilder("ITB Career Center", "Pilih salah satu", $url3, $options3);
+
+
+				// build message
+				$message3 = "Gunakan mobile app untuk melihat pilihan, atau anda bisa ketik manual,\n";
+				$message3 .= "pilih :\n";
+				$message3 .= "1. ketik \"Schoolarship periode bulan\" untuk melihat schoolarship periode bulan ini\n";
+				$message3 .= "2. ketik \"Schoolarship dalam negeri\" untuk melihat schoolarship dalam negeri\n";
+				$message3 .= "3. ketik \"Schoolarship luar negeri\" untuk melihat schoolarship luar negeri\n";
+				
+				$messageBuilder3 = new TemplateMessageBuilder($message2, $buttonTemplate3);
+				$this->bot->pushMessage($event['source']['userId'], $messageBuilder3);
+				*/
+				$message = 'Silakan kirim pesan untuk mengetahui informasi classroom yang kamu cari';
+                 $textMessageBuilder = new TextMessageBuilder($message);
+                 $this->bot->pushMessage($event['source']['userId'], $textMessageBuilder);
+				 
+				 $this->menuSchoolarship($userId);
+				 
+			/*	  
+            $url = "https://res.cloudinary.com/dhacnihww/image/upload/v1495004230/sample.jpg";
+			$options1[] = new MessageTemplateActionBuilder("1. Bulan ini","Schoolarship periode bulan");
+			$options1[] = new MessageTemplateActionBuilder("2. Dalam negeri","Schoolarship dalam negeri");
+			$options1[] = new MessageTemplateActionBuilder("3. Luar Negeri","Schoolarship luar negeri");
+		
+		// prepare button template
+		
+            $buttonTemplate1 = new ButtonTemplateBuilder("ITB Career Center", "Pilih salah satu", $url, $options1);
+
+
+            // build message
+			$message2 = "Gunakan mobile app untuk melihat pilihan, atau anda bisa ketik manual,\n";
+			$message2 .= "pilih :\n";
+			$message2 .= "1. ketik \"Schoolarship periode bulan\" untuk melihat schoolarship periode bulan ini\n";
+			$message2 .= "2. ketik \"Schoolarship dalam negeri\" untuk melihat schoolarship dalam negeri\n";
+			$message2 .= "3. ketik \"Schoolarship luar negeri\" untuk melihat schoolarship luar negeri\n";
+			
+            $messageBuilder1 = new TemplateMessageBuilder($message2, $buttonTemplate1);
+            $this->bot->pushMessage($event['source']['userId'], $messageBuilder1);
+			*/
+			}
+		
+			
+			  
+	  }
+
+	  public function menu($userId){
+			$url = "https://res.cloudinary.com/dhacnihww/image/upload/v1495004230/sample.jpg";
+			$options[] = new MessageTemplateActionBuilder("1. Schoolarship","Schoolarship");
+			$options[] = new MessageTemplateActionBuilder("2. Internship","Internship");
+			$options[] = new MessageTemplateActionBuilder("3. Job Vacancies","Job");
+		
+		// prepare button template
+		
+            $buttonTemplate = new ButtonTemplateBuilder("ITB Career Center", "Pilih salah satu", $url, $options);
+
+
+            // build message
+			$message = "Gunakan mobile app untuk melihat pilihan, atau anda bisa ketik manual,\n";
+			$message .= "pilih :\n";
+			$message .= "1. ketik \"SCHOOLARSHIP\" untuk melihat schoolarship\n";
+			$message .= "2. ketik \"INTERNSHIP\" untuk melihat internship\n";
+			$message .= "3. ketik \"JOB VACANCIES\" untuk melihat Job Vacancies\n";
+			
+            $messageBuilder = new TemplateMessageBuilder($message, $buttonTemplate);
+            $this->bot->pushMessage($userId, $messageBuilder);
+	  }
+	  
+	  public function menuSchoolarship($userId){
+			$url = "https://res.cloudinary.com/dhacnihww/image/upload/v1495004230/sample.jpg";
+			$options[] = new MessageTemplateActionBuilder("1. Bulan ini","Schoolarship periode bulan");
+			$options[] = new MessageTemplateActionBuilder("2. Dalam negeri","Schoolarship dalam negeri");
+			$options[] = new MessageTemplateActionBuilder("3. Luar Negeri","Schoolarship luar negeri");
+		
+		// prepare button template
+		
+            $buttonTemplate = new ButtonTemplateBuilder("ITB Career Center", "Pilih salah satu", $url, $options);
+
+
+            // build message
+			$message = "Gunakan mobile app untuk melihat pilihan, atau anda bisa ketik manual,\n";
+			$message .= "pilih :\n";
+			$message .= "1. ketik \"Schoolarship periode bulan\" untuk melihat schoolarship periode bulan ini\n";
+			$message .= "2. ketik \"Schoolarship dalam negeri\" untuk melihat schoolarship dalam negeri\n";
+			$message .= "3. ketik \"Schoolarship luar negeri\" untuk melihat schoolarship luar negeri\n";
+			
+            $messageBuilder = new TemplateMessageBuilder($message, $buttonTemplate);
+            $this->bot->pushMessage($userId, $messageBuilder);
+	  }
+	  
+      public function kirimInformasi($user_id, $informasi = '1')
+
+        {
+
+            // get question from database
+
+            $question = $this->M_careerdevelopment->ambilInformasi($informasi);
+
+
+            // prepare answer options
+
+            for($opsi = "a"; $opsi <= "d"; $opsi++) {
+
+                if(!empty($question['option_'.$opsi]))
+
+                    $options[] = new MessageTemplateActionBuilder($question['option_'.$opsi], $question['option_'.$opsi]);
+
+            }
+
+
+            // prepare button template
+
+            $buttonTemplate = new ButtonTemplateBuilder("Denah Lokasi Labtek V Lt 3", $question['text'], $question['image'], $options);
+
+
+            // build message
+
+            $messageBuilder = new TemplateMessageBuilder("Gunakan mobile app untuk melihat soal", $buttonTemplate);
+
+            $tesimage = new ImageMessageBuilder($question['image'], $question['image']);
+            // send message
+            $response = $this->bot->pushMessage($user_id, $tesimage);
+            $response = $this->bot->pushMessage($user_id, $messageBuilder);
+           
+             // $this->bot->pushMessage($event['source']['userId'], $tesimage);
+
+        }
+
+         private function balasPertanyaan($user_id, $message)
+
+          {
+           
+
+              // if answer is true, increment score
+
+              $jawaban = $this->M_careerdevelopment->cekBalasan($message);
+              if($jawaban){
+
+                  for($opsi = "a"; $opsi <= "d"; $opsi++) {
+
+                      if(!empty($jawaban['option_'.$opsi]))
+
+                          $options[] = new MessageTemplateActionBuilder($jawaban['option_'.$opsi], $jawaban['option_'.$opsi]);
+
+                       }
+
+
+                      // prepare button template
+
+                      $buttonTemplate = new ButtonTemplateBuilder($jawaban['number'], $jawaban['text'], $jawaban['image'], $options);
+
+
+                      // build message
+
+                      $messageBuilder = new TemplateMessageBuilder("Gunakan mobile app untuk melihat soal", $buttonTemplate);
+
+                      $tesimage = new ImageMessageBuilder($jawaban['image'], $jawaban['image']);
+                      // send message
+                      $response = $this->bot->pushMessage($user_id, $tesimage);
+                      $response = $this->bot->pushMessage($user_id, $messageBuilder);
+
+              }
+               else {
+
+                  $message = 'Silakan kirim pesan "DENAH" untuk mengetahui denah classroom.';
+
+                        $textMessageBuilder = new TextMessageBuilder($message);
+
+                        // $this->bot->pushMessage($event['source']['userId'], $textMessageBuilder);
+                         $response = $this->bot->pushMessage($user_id, $textMessageBuilder);
+
+                }
+          }
+
+}
